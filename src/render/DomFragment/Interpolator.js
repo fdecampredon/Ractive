@@ -34,6 +34,10 @@ define([
 	DomInterpolator.prototype = {
 		update: updateMustache,
 		resolve: resolveMustache,
+        
+        attach: function (target, index) {
+            this.node = target.childNodes[index];
+        },
 
 		detach: function () {
 			this.node.parentNode.removeChild( this.node );

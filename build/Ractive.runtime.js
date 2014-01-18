@@ -1,6 +1,6 @@
 /*
 	
-	Ractive - v0.3.9 - 2013-12-31
+	Ractive - v0.3.9 - 2014-01-18
 	==============================================================
 
 	Next-generation DOM manipulation - http://ractivejs.org
@@ -8,7 +8,7 @@
 
 	--------------------------------------------------------------
 
-	Copyright 2013 2013 Rich Harris and contributors
+	Copyright 2014 2013 Rich Harris and contributors
 
 	Permission is hereby granted, free of charge, to any person
 	obtaining a copy of this software and associated documentation
@@ -2285,6 +2285,9 @@ var render_DomFragment_Text = function (types) {
             }
         };
         DomText.prototype = {
+            attach: function (target, index) {
+                this.node = target.childNodes[index];
+            },
             detach: function () {
                 this.node.parentNode.removeChild(this.node);
                 return this.node;
@@ -2795,6 +2798,9 @@ var render_DomFragment_Interpolator = function (types, teardown, initMustache, r
         DomInterpolator.prototype = {
             update: updateMustache,
             resolve: resolveMustache,
+            attach: function (target, index) {
+                this.node = target.childNodes[index];
+            },
             detach: function () {
                 this.node.parentNode.removeChild(this.node);
                 return this.node;
@@ -3147,6 +3153,22 @@ var render_DomFragment_Section__Section = function (types, isClient, initMustach
             this.initialising = false;
         };
         DomSection.prototype = {
+            attach: function (target, index) {
+                var i = 0;
+                if (this.fragmentsById) {
+                    for (var id in this.fragmentsById) {
+                        if (this.fragmentsById.hasOwnProperty(id)) {
+                            this.fragmentsById.attach(target, index + i);
+                            i++;
+                        }
+                    }
+                } else {
+                    for (i = 0; i < this.length; i++) {
+                        this.fragments[i].attach(target, index + i);
+                    }
+                }
+                this.docFrag = document.createDocumentFragment();
+            },
             update: updateMustache,
             resolve: resolveMustache,
             smartUpdate: function (methodName, args) {
@@ -4583,6 +4605,7 @@ var render_DomFragment_Attribute__Attribute = function (types, determineNameAndN
             this.element = options.element;
             determineNameAndNamespace(this, options.name);
             if (options.value === null || typeof options.value === 'string') {
+                this.isStatic = true;
                 setStaticAttribute(this, options);
                 return;
             }
@@ -4611,6 +4634,21 @@ var render_DomFragment_Attribute__Attribute = function (types, determineNameAndN
         DomAttribute.prototype = {
             bind: bind,
             update: update,
+            attach: function (target) {
+                this.pNode = target;
+                if (this.isStatic) {
+                    return;
+                }
+                if (this.name === 'value') {
+                    this.isValueAttribute = true;
+                    if (this.pNode.tagName === 'INPUT' && this.pNode.type === 'file') {
+                        this.isFileInputValue = true;
+                    }
+                }
+                determinePropertyName(this, { pNode: this.pNode });
+                this.selfUpdating = this.fragment.isSimple();
+                this.ready = true;
+            },
             updateBindings: function () {
                 this.keypath = this.interpolator.keypath || this.interpolator.ref;
                 if (this.propertyName === 'name') {
@@ -5535,12 +5573,50 @@ var render_DomFragment_Element_prototype_bind = function () {
             }
         };
     }();
-var render_DomFragment_Element__Element = function (initialise, teardown, toString, find, findAll, findComponent, findAllComponents, bind) {
+var render_DomFragment_Element__Element = function (initialise, teardown, toString, find, findAll, findComponent, findAllComponents, bind, defineProperty, create, decorate, addEventProxies, executeTransition) {
         
         var DomElement = function (options, docFrag) {
             initialise(this, options, docFrag);
         };
         DomElement.prototype = {
+            attach: function (target, index) {
+                var parentFragment = this.parentFragment;
+                var contextStack = parentFragment.contextStack;
+                var root = parentFragment.root;
+                var descriptor = this.descriptor;
+                this.node = target.childNodes[index];
+                defineProperty(this.node, '_ractive', {
+                    value: {
+                        proxy: this,
+                        keypath: contextStack.length ? contextStack[contextStack.length - 1] : '',
+                        index: parentFragment.indexRefs,
+                        events: create(null),
+                        root: root
+                    }
+                });
+                var numAttributes = this.attributes ? this.attributes.length : 0, i;
+                for (i = 0; i < numAttributes; i++) {
+                    this.attributes[i].attach(this.node);
+                }
+                if (descriptor.f) {
+                    if (this.fragment) {
+                        this.fragment.attach(this.node, 0);
+                    }
+                }
+                addEventProxies(this, descriptor.v);
+                if (root.twoway) {
+                    this.bind();
+                    if (this.node.getAttribute('contenteditable') && this.node._ractive.binding) {
+                        this.node._ractive.binding.update();
+                    }
+                }
+                if (descriptor.o) {
+                    decorate(descriptor.o, root, this, contextStack);
+                }
+                if (descriptor.t1) {
+                    executeTransition(descriptor.t1, root, this, contextStack, true);
+                }
+            },
             detach: function () {
                 if (this.node) {
                     if (this.node.parentNode) {
@@ -5566,7 +5642,7 @@ var render_DomFragment_Element__Element = function (initialise, teardown, toStri
             bind: bind
         };
         return DomElement;
-    }(render_DomFragment_Element_initialise__initialise, render_DomFragment_Element_prototype_teardown, render_DomFragment_Element_prototype_toString, render_DomFragment_Element_prototype_find, render_DomFragment_Element_prototype_findAll, render_DomFragment_Element_prototype_findComponent, render_DomFragment_Element_prototype_findAllComponents, render_DomFragment_Element_prototype_bind);
+    }(render_DomFragment_Element_initialise__initialise, render_DomFragment_Element_prototype_teardown, render_DomFragment_Element_prototype_toString, render_DomFragment_Element_prototype_find, render_DomFragment_Element_prototype_findAll, render_DomFragment_Element_prototype_findComponent, render_DomFragment_Element_prototype_findAllComponents, render_DomFragment_Element_prototype_bind, utils_defineProperty, utils_create, render_DomFragment_Element_initialise_decorate__decorate, render_DomFragment_Element_initialise_addEventProxies__addEventProxies, render_DomFragment_Element_shared_executeTransition__executeTransition);
 var config_errors = { missingParser: 'Missing Ractive.parse - cannot parse template. Either preparse or use the version that includes the parser' };
 var registries_partials = {};
 var render_DomFragment_Partial_getPartialDescriptor = function (errors, isClient, warn, isObject, partials, parse) {
@@ -6010,6 +6086,16 @@ var render_DomFragment__DomFragment = function (types, matches, initFragment, in
                 }
                 return this.docFrag;
             },
+            attach: function (target, index) {
+                if (this.pNode) {
+                    throw new Error('fragment is already attached to a node');
+                }
+                this.pNode = target;
+                var numItems = this.items.length, i;
+                for (i = 0; i < numItems; i += 1) {
+                    this.items[i].attach(target, index + i);
+                }
+            },
             createItem: function (options) {
                 if (typeof options.descriptor === 'string') {
                     return new Text(options, this.docFrag);
@@ -6433,7 +6519,17 @@ var Ractive_prototype_insert = function (getElement) {
             this.fragment.pNode = target;
         };
     }(utils_getElement);
-var Ractive_prototype__prototype = function (get, set, update, updateModel, animate, on, off, observe, fire, find, findAll, findComponent, findAllComponents, render, renderHTML, toHTML, teardown, add, subtract, toggle, merge, detach, insert) {
+var Ractive_prototype_attach = function () {
+        
+        return function (target) {
+            if (this.el) {
+                throw new Error('Ractive cannot be attached to multiple elements');
+            }
+            this.el = target;
+            return this.fragment.attach(target, 0);
+        };
+    }();
+var Ractive_prototype__prototype = function (get, set, update, updateModel, animate, on, off, observe, fire, find, findAll, findComponent, findAllComponents, render, renderHTML, toHTML, teardown, add, subtract, toggle, merge, detach, insert, attach) {
         
         return {
             get: get,
@@ -6458,9 +6554,10 @@ var Ractive_prototype__prototype = function (get, set, update, updateModel, anim
             toggle: toggle,
             merge: merge,
             detach: detach,
-            insert: insert
+            insert: insert,
+            attach: attach
         };
-    }(Ractive_prototype_get__get, Ractive_prototype_set, Ractive_prototype_update, Ractive_prototype_updateModel, Ractive_prototype_animate__animate, Ractive_prototype_on, Ractive_prototype_off, Ractive_prototype_observe__observe, Ractive_prototype_fire, Ractive_prototype_find, Ractive_prototype_findAll, Ractive_prototype_findComponent, Ractive_prototype_findAllComponents, Ractive_prototype_render, Ractive_prototype_renderHTML, Ractive_prototype_toHTML, Ractive_prototype_teardown, Ractive_prototype_add, Ractive_prototype_subtract, Ractive_prototype_toggle, Ractive_prototype_merge__merge, Ractive_prototype_detach, Ractive_prototype_insert);
+    }(Ractive_prototype_get__get, Ractive_prototype_set, Ractive_prototype_update, Ractive_prototype_updateModel, Ractive_prototype_animate__animate, Ractive_prototype_on, Ractive_prototype_off, Ractive_prototype_observe__observe, Ractive_prototype_fire, Ractive_prototype_find, Ractive_prototype_findAll, Ractive_prototype_findComponent, Ractive_prototype_findAllComponents, Ractive_prototype_render, Ractive_prototype_renderHTML, Ractive_prototype_toHTML, Ractive_prototype_teardown, Ractive_prototype_add, Ractive_prototype_subtract, Ractive_prototype_toggle, Ractive_prototype_merge__merge, Ractive_prototype_detach, Ractive_prototype_insert, Ractive_prototype_attach);
 var extend_registries = function () {
         
         return [
@@ -6718,6 +6815,10 @@ var Ractive_initialise = function (isClient, errors, warn, create, extend, defin
             adaptors: {
                 enumerable: true,
                 value: getArray
+            },
+            stringOnly: {
+                enumerable: true,
+                value: getArray
             }
         });
         registries = [
@@ -6848,7 +6949,7 @@ var Ractive_initialise = function (isClient, errors, warn, create, extend, defin
                 stripComments: options.stripComments
             };
             ractive.transitionsEnabled = options.noIntro ? false : options.transitionsEnabled;
-            if (isClient && !ractive.el) {
+            if (isClient && !ractive.el && !options.stringOnly) {
                 ractive.el = document.createDocumentFragment();
             }
             if (ractive.el && !options.append) {

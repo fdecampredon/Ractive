@@ -72,6 +72,19 @@ define([
 
 			return this.docFrag;
 		},
+        
+        attach: function (target, index) {
+            if (this.pNode) {
+                throw new Error('fragment is already attached to a node');
+            }
+            this.pNode = target;
+            
+            var numItems = this.items.length,
+                i;
+            for ( i=0; i<numItems; i+=1 ) {
+                this.items[i].attach(target, index + i);
+            }
+        },
 
 		createItem: function ( options ) {
 			if ( typeof options.descriptor === 'string' ) {

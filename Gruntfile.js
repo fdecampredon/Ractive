@@ -190,6 +190,14 @@ module.exports = function(grunt) {
 		'uglify',
 		'copy:link'
 	]);
+    
+    grunt.registerTask( 'build', [
+		'clean:tmp',
+		'jshint',
+		'requirejs',
+		'clean:build',
+		'concat:full'
+	]);
 
 	grunt.registerTask( 'test', [
 		'clean:tmp',

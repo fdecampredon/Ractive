@@ -27,6 +27,7 @@ define([
 		// if it's an empty attribute, or just a straight key-value pair, with no
 		// mustache shenanigans, set the attribute accordingly and go home
 		if ( options.value === null || typeof options.value === 'string' ) {
+            this.isStatic = true;
 			setStaticAttribute( this, options );
 			return;
 		}
@@ -78,6 +79,36 @@ define([
 		bind: bind,
 		update: update,
 
+        attach: function (target) {
+            this.pNode = target;
+            
+            if (this.isStatic) {
+                return;
+            }
+            // special cases
+            if ( this.name === 'value' ) {
+                this.isValueAttribute = true;
+    
+                // TODO need to wait until afterwards to determine type, in case we
+                // haven't initialised that attribute yet
+                // <input type='file' value='{{value}}'>
+                if ( this.pNode.tagName === 'INPUT' && this.pNode.type === 'file' ) {
+                    this.isFileInputValue = true;
+                }
+            }
+    
+    
+            // can we establish this attribute's property name equivalent?
+            determinePropertyName( this, {
+                pNode: this.pNode
+            });
+    
+            // determine whether this attribute can be marked as self-updating
+            this.selfUpdating = this.fragment.isSimple();
+    
+            // mark as ready
+            this.ready = true;
+        },
 		updateBindings: function () {
 			// if the fragment this attribute belongs to gets reassigned (as a result of
 			// as section being updated via an array shift, unshift or splice), this

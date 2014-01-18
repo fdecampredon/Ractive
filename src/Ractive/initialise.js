@@ -47,7 +47,9 @@ define([
 		noIntro:            { enumerable: true, value: false     },
 		transitionsEnabled: { enumerable: true, value: true      },
 		magic:              { enumerable: true, value: false     },
-		adaptors:           { enumerable: true, value: getArray  }
+		adaptors:           { enumerable: true, value: getArray  },
+        stringOnly:         { enumerable: true, value: getArray  },
+        
 	});
 
 	registries = [ 'components', 'decorators', 'events', 'partials', 'transitions', 'data' ];
@@ -237,7 +239,7 @@ define([
 
 		// If we're in a browser, and no element has been specified, create
 		// a document fragment to use instead
-		if ( isClient && !ractive.el ) {
+		if ( isClient && !ractive.el && !options.stringOnly) {
 			ractive.el = document.createDocumentFragment();
 		}
 

@@ -3,6 +3,7 @@ define([
 	'parse/Parser/getComment/_getComment',
 	'parse/Parser/getMustache/_getMustache',
 	'parse/Parser/getElement/_getElement',
+	'config/types',
 
 	'parse/Parser/utils/jsonifyStubs'
 ], function (
@@ -10,13 +11,14 @@ define([
 	getComment,
 	getMustache,
 	getElement,
+    types,
 
 	jsonifyStubs
 ) {
 
 	'use strict';
 
-	var Parser;
+	var Parser;//, onlyWhitespace = /^\s*$/;
 
 	Parser = function ( tokens, options ) {
 		var stub, stubs;
@@ -42,6 +44,12 @@ define([
 			if ( !token ) {
 				return null;
 			}
+            
+            /*if (!this.preserveWhitespace && ( token.type === types.TEXT ) && onlyWhitespace.test( token.value ) ) {
+                this.pos += 1;
+                return this.getStub();
+            }*/
+
 
 			return this.getText( token )     ||
 			       this.getComment( token )  ||

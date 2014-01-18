@@ -55,6 +55,23 @@ define([
 	};
 
 	DomSection.prototype = {
+        attach: function (target, index) {
+            var i = 0;
+            if (this.fragmentsById) {
+                for (var id in this.fragmentsById) {
+                    if (this.fragmentsById.hasOwnProperty(id)) {
+                        this.fragmentsById.attach(target, index + i);
+                        i++;
+                    }
+                }
+            } else {
+                for ( i= 0; i < this.length; i ++) {
+                    this.fragments[i].attach(target, index + i);
+                }    
+            }
+            this.docFrag  = document.createDocumentFragment();
+        },
+        
 		update: updateMustache,
 		resolve: resolveMustache,
 
